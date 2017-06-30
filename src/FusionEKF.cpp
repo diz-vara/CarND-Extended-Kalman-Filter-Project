@@ -75,37 +75,6 @@ FusionEKF::~FusionEKF() {}
 void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
 
-  double px(0);
-  double py(0);
-  double vx(0);
-  double vy(0);
-  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-    /**
-    Convert radar from polar to cartesian coordinates and initialize state.
-    */
-    //std::cout << "RADAR" << std::endl;
-    double rho = measurement_pack.raw_measurements_[0];
-    double phi = measurement_pack.raw_measurements_[1];
-    double rho_dot = measurement_pack.raw_measurements_[2];
-
-    px = rho * cos(phi);
-    py = rho * sin(phi);
-    vx = rho_dot * cos(phi);
-    vy = rho_dot * sin(phi);
-  }
-  else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
-    //std::cout << "LiDAR" << std::endl;
-    /**
-    Initialize state.
-    */
-    px = measurement_pack.raw_measurements_(0);
-    py = measurement_pack.raw_measurements_(1);
-    vx = 0; 
-    vy = 0; 
-  }
-
-  VectorXd newX = VectorXd(4);
-  newX << px, py, vx, vy;
 
 
   /*****************************************************************************
@@ -119,10 +88,37 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       * Remember: you'll need to convert radar from polar to cartesian coordinates.
     */
     // first measurement
-    ekf_.x_ = VectorXd(4);
-    ekf_.x_ = newX;
+    double px(0);
+    double py(0);
+    double vx(5);
+    double vy(0);
+    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+      /**
+      Convert radar from polar to cartesian coordinates and initialize state.
+      */
+      //std::cout << "RADAR" << std::endl;
+      double rho = measurement_pack.raw_measurements_[0];
+      double phi = measurement_pack.raw_measurements_[1];
+      double rho_dot = measurement_pack.raw_measurements_[2];
 
-    Hj_ = Tools::CalculateJacobian(ekf_.x_);
+      px = rho * cos(phi);
+      py = rho * sin(phi);
+      vx = rho_dot * cos(phi);
+      vy = rho_dot * sin(phi);
+    }
+    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+      //std::cout << "LiDAR" << std::endl;
+      /**
+      Initialize state.
+      */
+      px = measurement_pack.raw_measurements_(0);
+      py = measurement_pack.raw_measurements_(1);
+    }
+
+    ekf_.x_ = VectorXd(4);
+    ekf_.x_ << px, py, vx, vy;
+
+    //Hj_ = Tools::CalculateJacobian(ekf_.x_);
 
     this->previous_timestamp_ = measurement_pack.timestamp_;
 
@@ -145,8 +141,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   double dt = (double)(dt_in_microseconds) / 1000000.;
   static double dt_old(-1);
 
-  std:cout << "dt=" << dt << std::endl;
-  Hj_ = Tools::CalculateJacobian(newX);
+  //std:cout << "dt=" << dt << std::endl;
 
   /**
    TODO:
@@ -189,6 +184,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     // Radar updates
+    Hj_ = Tools::CalculateJacobian(ekf_.x_);
     ekf_.H_ = Hj_;
     ekf_.R_ = R_radar_;
     ekf_.UpdateEKF(measurement_pack.raw_measurements_);
